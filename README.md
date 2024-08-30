@@ -1,6 +1,6 @@
 # Application de Signalement d'Animaux Perdus
 
-Cette application permet aux utilisateurs de signaler des animaux perdus en fournissant leurs coordonnées GPS et d'autres informations pertinentes. Elle offre également une visualisation des animaux perdus sur une carte interactive.
+Cette application permet aux utilisateurs de signaler des animaux perdus en fournissant leurs coordonnées GPS et d'autres informations pertinentes. Elle offre également une visualisation des animaux perdus sur une carte interactive. L'application utilise Convex comme plateforme de base de données.
 
 ## Fonctionnalités
 
@@ -12,7 +12,7 @@ Cette application permet aux utilisateurs de signaler des animaux perdus en four
 ## Prérequis
 
 - Python 3.7+
-- PostgreSQL
+- Un compte Convex et un déploiement Convex
 
 ## Installation
 
@@ -33,9 +33,9 @@ Cette application permet aux utilisateurs de signaler des animaux perdus en four
    pip install -r requirements.txt
    ```
 
-4. Configurez la base de données PostgreSQL :
-   - Créez une base de données nommée `animaux_perdus_db`
-   - Mettez à jour l'URL de la base de données dans `database.py` si nécessaire
+4. Configurez Convex :
+   - Créez un fichier `.env` à la racine du projet
+   - Ajoutez votre URL de déploiement Convex : `CONVEX_URL=https://votre-deploiement.convex.cloud`
 
 5. Lancez l'application :
    ```

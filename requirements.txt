@@ -1,9 +1,10 @@
 fastapi
 uvicorn
 pydantic
-sqlalchemy
-psycopg2-binary
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
 folium
+httpx
+python-dotenv
+convex
