@@ -9,9 +9,14 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import folium
+import logging
 
 import models
 from database import engine, get_db
+
+# Configuration du logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -59,12 +64,14 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    logger.info(f"Tentative de connexion pour l'utilisateur: {form_data.username}")
     # Ici, vous devriez vérifier les identifiants de l'utilisateur
     # Pour cet exemple, nous acceptons n'importe quel utilisateur
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": form_data.username}, expires_delta=access_token_expires
     )
+    logger.info(f"Token généré pour l'utilisateur: {form_data.username}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -74,10 +81,12 @@ async def creer_animal_perdu(
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme),
 ):
+    logger.info(f"Tentative de création d'un nouvel animal perdu: {animal.espece}")
     db_animal = models.AnimalPerdu(**animal.dict())
     db.add(db_animal)
     db.commit()
     db.refresh(db_animal)
+    logger.info(f"Nouvel animal perdu créé avec l'ID: {db_animal.id}")
     return db_animal
 
 
@@ -88,7 +97,9 @@ async def lire_animaux_perdus(
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme),
 ):
+    logger.info(f"Récupération des animaux perdus. Skip: {skip}, Limit: {limit}")
     animaux = db.query(models.AnimalPerdu).offset(skip).limit(limit).all()
+    logger.info(f"Nombre d'animaux perdus récupérés: {len(animaux)}")
     return animaux
 
 
@@ -96,17 +107,22 @@ async def lire_animaux_perdus(
 async def lire_animal_perdu(
     animal_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
 ):
+    logger.info(f"Recherche de l'animal perdu avec l'ID: {animal_id}")
     animal = (
         db.query(models.AnimalPerdu).filter(models.AnimalPerdu.id == animal_id).first()
     )
     if animal is None:
+        logger.warning(f"Animal avec l'ID {animal_id} non trouvé")
         raise HTTPException(status_code=404, detail="Animal non trouvé")
+    logger.info(f"Animal trouvé: {animal.espece}")
     return animal
 
 
 @app.get("/carte-animaux-perdus", response_class=HTMLResponse)
 async def carte_animaux_perdus(db: Session = Depends(get_db)):
+    logger.info("Génération de la carte des animaux perdus")
     animaux = db.query(models.AnimalPerdu).all()
+    logger.info(f"Nombre d'animaux à afficher sur la carte: {len(animaux)}")
 
     # Créer une carte centrée sur la France
     m = folium.Map(location=[46.2276, 2.2137], zoom_start=6)
@@ -119,9 +135,11 @@ async def carte_animaux_perdus(db: Session = Depends(get_db)):
             tooltip=animal.espece,
         ).add_to(m)
 
+    logger.info("Carte générée avec succès")
     # Retourner la carte en HTML
     return m._repr_html_()
 
 
 if __name__ == "__main__":
+    logger.info("Démarrage de l'application")
     uvicorn.run(app, host="0.0.0.0", port=8000)
