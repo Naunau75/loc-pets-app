@@ -1,0 +1,52 @@
+# Fichier d'instructions spécifique au projet
+instruction.txt
+
+# Fichiers Python compilés
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environnements virtuels
+venv/
+env/
+.env
+
+# Fichiers de configuration IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Fichiers de logs
+*.log
+
+# Fichiers de base de données
+*.sqlite3
+
+# Fichiers de sauvegarde
+*.bak
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers de distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Fichiers de couverture de tests
+.coverage
+htmlcov/
+
+# Fichiers temporaires
+*.tmp
+*.temp
+
+# Fichiers de configuration potentiellement sensibles
+config.ini
+secrets.json
+
+# Dossier des dépendances installées localement
+lib/
+libs/

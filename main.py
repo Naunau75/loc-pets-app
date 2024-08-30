@@ -1,0 +1,127 @@
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import List
+import uvicorn
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+import folium
+
+import models
+from database import engine, get_db
+
+models.Base.metadata.create_all(bind=engine)
+
+app = FastAPI()
+
+# Configuration de l'authentification
+SECRET_KEY = "votre_clé_secrète_ici"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class AnimalPerduCreate(BaseModel):
+    latitude: float
+    longitude: float
+    description: str
+    date_perte: datetime
+    espece: str
+
+
+class AnimalPerdu(AnimalPerduCreate):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    # Ici, vous devriez vérifier les identifiants de l'utilisateur
+    # Pour cet exemple, nous acceptons n'importe quel utilisateur
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": form_data.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/animaux-perdus/", response_model=AnimalPerdu)
+async def creer_animal_perdu(
+    animal: AnimalPerduCreate,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme),
+):
+    db_animal = models.AnimalPerdu(**animal.dict())
+    db.add(db_animal)
+    db.commit()
+    db.refresh(db_animal)
+    return db_animal
+
+
+@app.get("/animaux-perdus/", response_model=List[AnimalPerdu])
+async def lire_animaux_perdus(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme),
+):
+    animaux = db.query(models.AnimalPerdu).offset(skip).limit(limit).all()
+    return animaux
+
+
+@app.get("/animaux-perdus/{animal_id}", response_model=AnimalPerdu)
+async def lire_animal_perdu(
+    animal_id: int, db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
+):
+    animal = (
+        db.query(models.AnimalPerdu).filter(models.AnimalPerdu.id == animal_id).first()
+    )
+    if animal is None:
+        raise HTTPException(status_code=404, detail="Animal non trouvé")
+    return animal
+
+
+@app.get("/carte-animaux-perdus", response_class=HTMLResponse)
+async def carte_animaux_perdus(db: Session = Depends(get_db)):
+    animaux = db.query(models.AnimalPerdu).all()
+
+    # Créer une carte centrée sur la France
+    m = folium.Map(location=[46.2276, 2.2137], zoom_start=6)
+
+    # Ajouter un marqueur pour chaque animal perdu
+    for animal in animaux:
+        folium.Marker(
+            location=[animal.latitude, animal.longitude],
+            popup=f"{animal.espece}: {animal.description}",
+            tooltip=animal.espece,
+        ).add_to(m)
+
+    # Retourner la carte en HTML
+    return m._repr_html_()
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
